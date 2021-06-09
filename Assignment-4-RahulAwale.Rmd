@@ -1,0 +1,289 @@
+---
+title: "ANLY 565- Assignment 4"
+author: "Rahul Awale"
+date: "4/20/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r start, warning=FALSE, message=FALSE}
+#Rahul Awale 
+#ANLY 565 Time Series and Forecasting 
+# Practical Assignment #4
+# Value: 150 points
+# Deadline: April 21th, 2021
+
+#1  Check your working directory
+
+getwd()
+
+#2  Set your working directory to "ANLY 565/RScript". 
+
+setwd("P:/Documents/ANLY 565/RScript")
+
+#3  Download "ffrategdp.xls" data file and set the "observation_date" 
+#   variable to the date format and the "FEDFUNDS" and "GDPC1" variables to the numeric format.
+#   The "FEDFUNDS" variable represents the effective federal funds rate,
+#   which idicates the interest rate at which depository institutions trade federal funds 
+#   (balances held at Federal Reserve Banks) with each other overnight. 
+#   The "GDPC1" variable represents real gross domestic product.
+
+library(readxl)
+
+ffrategdp <- read_xls("ffrategdp.xls")
+
+ffrategdp$observation_date <- as.Date(ffrategdp$observation_date)
+ffrategdp$FEDFUNDS <- as.numeric(ffrategdp$FEDFUNDS)
+ffrategdp$GDPC1 <- as.numeric(ffrategdp$GDPC1)
+
+
+#4  By using ts() function create a time series object that contains two variables: "FEDFUNDS" and "GDPC1".
+#   Label it as "ffrategdpts".
+
+range(ffrategdp$observation_date)
+
+head(ffrategdp)
+
+#time series
+
+ffrategdpts <- ts(ffrategdp[-1],start = c(1954,3), end = c(2019,2), frequency = 4 )
+str(ffrategdpts)
+
+#5  Create two stand alone variables "fedrate" and "gdp" that take on values of the "FEDFUNDS" and "GDPC1"
+#   variables from the "ffrategdpts" data set.
+
+head(ffrategdpts)
+
+str(ffrategdpts)
+
+fedrate <- ffrategdpts[,1]
+
+gdp <- ffrategdpts[,2]
+
+#6  When the federal funds rate goes down, the comercial loan interest rates go down too.
+#   This means that people can borrow cheaply and invest in their businesses, 
+#   which will result in higher gross domestic product. 
+#   Therefore, you suspect that the federal funds rate has a negative correlation with GDP.
+#   To test this hypothesis you decide to use lm() function to estimate the coeficients of 
+#   a linear regression model in which "gdp" is a dependent variable and "fedrate" 
+#   is an idependent variable.  
+#   Save the estimated model as gdpfr.lm
+#   Based on the results of this model can you make any conclusions about the nature of the 
+#   relationship between the gdp and the federal funds rate?
+
+#->According to the result, "fedrate" is negatively related with gdp. The coefficient -526.10 shows that it is significant in predicting gdp.Also, R2 is 0.1519, which indicates that the independent variable is not explaining much in the variation of the dependent variable. In this cas, the model only explains about 15% of the variation within the data.
+
+gdpfr.lm <- lm(gdp ~ fedrate)
+summary(gdpfr.lm)
+
+#7  You have suspected that the "gdp" variable may contain a unit root.
+#   By using Augmented Dickey Fuller method test "gdp" variable for the 
+#   the presence of unit root. 
+#   Does "gdp" variable contain a unit root?
+#   Is "gdp" variable stationary?
+
+#-> Yes, the "gdp" variable contains unit roots and it is non-stationary.
+
+library(tseries)
+
+adf.test(gdp)
+
+acf(gdp)
+
+#8  By using Augmented Dickey Fuller method test "fedrate" variable for the 
+#   the presence of unit root. 
+#   Does "fedrate" variable contain a unit root?
+#   Is "fedrate" variable stationary?
+
+#-> Yes, the federate contains unit root and it is non-stationary.
+
+adf.test(fedrate)
+
+acf(fedrate)
+
+
+#9  The Phillips-Ouliaris test shows whether there is evidence that the series are
+#   cointegrated, which justifies the use of a regression model. 
+#   Are "gdp" and "fedrate" variables cointegrated?
+#   Is "gdpfr.lm" a suitable model to explore the relationship between "gdp" and "fedrate"?
+
+#-> No, gdp and fedrate are not cointegrated and gdpfr.lm is a suitable model.
+
+po.test(cbind(gdp, fedrate))
+
+#10 Create the following 2 new variables:
+#   "gdpgrowth" - that represents quarterly percentage chagne in GDP
+#   "fedratediff" - that represents quarterly difference in the federal funds rate (simple difference)
+#   To each of the varibles add "NA" as the first observation .
+#   This will ensure that the new variables are of the same length as the existing variables.
+
+gdpgrowth <- c(NA,diff(gdp)/lag(gdp,-1)*100 )
+head(gdpgrowth)
+
+fedratediff <- c(NA, diff(fedrate))
+head(fedratediff)
+
+#11  By using ts() and cbind() functions add "gdpgrowth" and "fedratediff" variables 
+#    to the "ffrategdpts" data set. 
+
+df2 <- ts(cbind(gdpgrowth,fedratediff), start =c(1954,3), end = c(2019,2), frequency = 4 )
+head(df2)
+
+ffrategdpts <- cbind(df2,ffrategdpts)
+str(ffrategdpts)
+
+colnames(ffrategdpts) <- c("gdpgrowth", "fedratediff", "FEDFUNDS", "GDPC1")
+
+#12 Use na.omit() function to get rid of the missing values in the "ffrategdpts" data set. 
+#   Save the new data set as "ffrategdptscc". 
+
+ffrategdptscc <- na.omit(ffrategdpts)
+head(ffrategdptscc)
+
+#13  Create 2 new variables: 
+#    "ggdp" - takes on values of the "gdpgrowth" from the "ffrategdptscc"
+#    "dfrate" - takes on values of the "fedratediff" from the "ffrategdptscc"
+
+ggdp <- ffrategdptscc[,1]
+dfrate <- ffrategdptscc[,2]
+
+#14 Use to Augmented Dickey-Fuller test to determine whether "ggdp" and "dfrate"
+#   are statiomary or not. 
+#   Does "ggdp" contain a unit root? Is "ggdp" stationary? 
+#   Does "dfrate" contain a unit root? Is "dfrate" stationary?
+
+#-> Both ggdp and dfrate does not ahve unit roots and is stationary.
+
+adf.test(ggdp)
+
+adf.test(dfrate)
+
+#15 Use lm() function to estimate the coeficients of a linear regression model 
+#   in which "ggdp" is a dependent variable and "dfrate" is as an idependent variable.
+#   Label these estimates as "ggdp.dfrate.lm".
+#   Based on the findings of the linear regression model what is the nature of the relationship 
+#   between the growth rate of real gdp and difference in federal funds rate?
+
+#-> The different in federal funds rate is positively related to the growth rate of real gdp. It seems to be a significant factor in predicting the real growth rate of gdp. But, our R2 is 0.1018, which indicates that our model only explains about 10% of variations in the data.
+
+ggdp.dfrate.lm <- lm(ggdp ~ dfrate)
+summary(ggdp.dfrate.lm)
+
+#16 Create a variable called "ggdp.dfrate.lm.resid" that represents the residual series obtained 
+#   from the "ggdp.dfrate.lm" regression
+ggdp.dfrate.lm.resid <- ggdp.dfrate.lm$residuals
+
+#17 Constract acf and pacf functions for "ggdp.dfrate.lm.resid".
+#   What can you say about the goodness of the fit of the model?
+
+#-> The fit of the model is not perfect as the autocorrelation from acf and pacf plots shows significant lags.
+
+acf(ggdp.dfrate.lm.resid)
+
+
+pacf(ggdp.dfrate.lm.resid)
+
+#18 Maybe vector autoregression model would prove a better fit. 
+#   Upload "vars" library that contains VAR() function
+
+library(vars)
+
+#19 Estimate a VAR model for the "ggdp" and "dfrate" variables.
+#   In this modelincludes 3 lags of each variable. 
+#   Save the estimates of the var model as "ggdp.dfrate.var"
+
+ggdp.dfrate.var <- VAR(cbind(ggdp,dfrate), p = 3, type = "trend")
+coef(ggdp.dfrate.var)
+
+#20 Use plot() and irf() functions to obtain and plot impulse response functions for each variable.
+#   IRF illustrates the behavior of a variable in response to one standard deviation shock 
+#   in its own value and in the value of the other variable.
+#   Based on the these graph what conclusions can you draw about the nature of the relationship between 
+#   the growth rate of gdp and the difference in federal funds rate? 
+#   Any potential explanations?
+
+#-> According to the results, difference in federal funds rate is negatively affected by the growth rate of gdp most of the time. Based on the plot, we can see lag 3 is the turning point. This could be a result from factors such as development rate of economy.
+
+
+plot(irf(ggdp.dfrate.var, response="ggdp", boot=T, nsteps = 4))
+
+
+plot(irf(ggdp.dfrate.var, response="dfrate", boot=T, nsteps = 4))
+
+#21 Use resid() function to obtain the residuals from the ggdp equation of the "ggdp.dfrate.var" model.
+#   Save this residual series as "var.ggdp.resid".
+var.ggdp.resid <- resid(ggdp.dfrate.var)[,1]
+#22 #17 Use resid() function to obtain the residuals from the dfrate equation of the "ggdp.dfrate.var" model.
+#   Save this residual series as "var.dfrate.resid".
+var.dfrate.resid <- resid(ggdp.dfrate.var)[,2]
+#24 Plot acf and pacf functions for the 'var.ggdp.resid". 
+#   Does "ggdp.dfrate.var" model provide a good fit to explain growth rate of gdp? 
+
+#-> No autocorellation in the residuals, therefore we have a good fit to explain growth rate of gdp.
+
+
+acf(var.ggdp.resid)
+
+
+pacf(var.ggdp.resid)
+
+#25 Plot acf and pacf functions for the 'var.dfrate.resid". 
+#   Does "ggdp.dfrate.var" model provide a good fit to explain the difference in federal funds rate?
+
+#->The model is not a good fit because there is autocorrelation in it's residuals. 
+
+acf(var.dfrate.resid)
+
+
+pacf(var.dfrate.resid)
+
+#26 Use "ggdp.dfrate.var" model and predict() function to forecast growth rate of gdp and 
+#   change in federal funds rate over the upcoming year. 
+#   Save the predicted values as "VAR.pred"
+
+VAR.pred <- predict(ggdp.dfrate.var, n.ahead = 4)
+VAR.pred 
+
+#27 Use ts() function and VAR.pred forecast to create a new variable "ggdp.pred".
+#   It should contain the forcasted values of the growth rate of gdp over the next 4 quarters.
+
+ggdp.pred <- ts(VAR.pred$fcst$ggdp[,1], st = c(2019,3), fr = 4)
+ggdp.pred
+
+#28 Use ts() function and VAR.pred forecast to create a new variable "dfrate.pred".
+#   It should contain the prediction of the change in the federal funds rate over the next 4 quarters.
+
+dfrate.pred <- ts(VAR.pred$fcst$dfrate[,1], st = c(2019,3), fr = 4)
+dfrate.pred 
+
+#29 Plot the times series graph of the past growth rates of gdp alongside 
+#   its future forecasted values. Do you expect the gdp to grow over the next 4 quarters?
+#   Is a new recession likely to happen in the coming year?
+
+#->Yes, we can expect gdp to grow over the next four quarters and it is unlikely that there will be a new recession in the coming year.
+
+ts.plot(cbind(ggdp, ggdp.pred), lty = 1:2,col=c("blue","red"))
+#30 Plot the times series graph of the past changes of the federal funds rate alongside 
+#   its future forecasted values. 
+#   Do you expect the federal funds rate to increase over the next 4 quarters?
+#   Should one take out a loan now?
+
+
+#-> It is a good time to take out loan, as federal funds rate is expected to decrease over the next 4 quarters.
+
+ts.plot(cbind(dfrate, dfrate.pred), lty = 1:2,col=c("blue","red"))
+
+
+
+
+
+
+
+
+
+```
+  
